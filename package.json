@@ -7,7 +7,7 @@
   "version": "8.3.2",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/api-cardano-db-hasura"
   ],
   "scripts": {
     "build": "yarn workspaces run build",
