@@ -107,6 +107,27 @@ services:
         max-size: "200k"
         max-file: "10"
 
+  pgadmin:
+    # image: dpage/pgadmin4
+    build:
+      context: ./src/pgadmin
+      args:
+        NETWORK: ${NETWORK}
+        POSTGRES_DB: ${POSTGRES_DB}
+        POSTGRES_USER: ${POSTGRES_USER}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    restart: always
+    environment:
+        PGADMIN_LISTEN_PORT: 80
+    ports:
+        - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+        - pgadmin-data:/var/lib/pgadmin
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+
+
   # background:
   #   build:
   #     context: .
@@ -188,3 +209,4 @@ volumes:
   node-db:
   node-ipc:
   postgres14-data:
+  pgadmin-data:
