@@ -1,6 +1,10 @@
 #!/bin/sh
 set -x
 
+POSTGRES_DB=$(cat /run/secrets/postgres_db)
+POSTGRES_USER=$(cat /run/secrets/postgres_user)
+POSTGRES_PASSWORD=$(cat /run/secrets/postgres_password)
+
 # Set password
 mkdir -p /pgpass
 PGADMIN_PASSWORD_FILE=/pgpass/pgpass
