@@ -6,18 +6,19 @@ import { introspectSchema, wrapSchema } from '@graphql-tools/wrap'
 import pRetry from 'p-retry'
 import {
   AdaPots,
-  Asset,
-  AssetBalance,
-  AssetSupply,
+  // Asset,
+  // AssetBalance,
+  // AssetSupply,
   PaymentAddressSummary,
   ProtocolParams,
-  Token,
-  TransactionOutput
+  // Token,
+  // TransactionOutput
 } from './graphql_types'
 import { dummyLogger, Logger } from 'ts-log'
-import BigNumber from 'bignumber.js'
+// import BigNumber from 'bignumber.js'
 
-export type AdaPotsToCalculateSupply = { circulating: AssetSupply['circulating'], reserves: AdaPots['reserves']}
+// export type AdaPotsToCalculateSupply = { circulating: AssetSupply['circulating'], reserves: AdaPots['reserves']}
+export type AdaPotsToCalculateSupply = { reserves: AdaPots['reserves']}
 
 const epochInformationNotYetAvailable = 'Epoch information not yet available. This is expected during the initial chain-sync.'
 
@@ -91,20 +92,20 @@ export class HasuraClient {
     )
     const {
       epochs,
-      rewards_aggregate: rewardsAggregate,
-      utxos_aggregate: utxosAggregate,
-      withdrawals_aggregate: withdrawalsAggregate
+      // rewards_aggregate: rewardsAggregate,
+      // utxos_aggregate: utxosAggregate,
+      // withdrawals_aggregate: withdrawalsAggregate
     } = result
     if (epochs.length === 0 || epochs[0]?.adaPots === null) {
       this.logger.debug({ module: 'HasuraClient' }, epochInformationNotYetAvailable)
       throw new Error(epochInformationNotYetAvailable)
     }
-    const rewards = new BigNumber(rewardsAggregate.aggregate.sum.amount)
-    const utxos = new BigNumber(utxosAggregate.aggregate.sum.value)
-    const withdrawals = new BigNumber(withdrawalsAggregate.aggregate.sum.amount)
-    const withdrawableRewards = rewards.minus(withdrawals)
+    // const rewards = new BigNumber(rewardsAggregate.aggregate.sum.amount)
+    // const utxos = new BigNumber(utxosAggregate.aggregate.sum.value)
+    // const withdrawals = new BigNumber(withdrawalsAggregate.aggregate.sum.amount)
+    // const withdrawableRewards = rewards.minus(withdrawals)
     return {
-      circulating: utxos.plus(withdrawableRewards).toString(),
+      // circulating: utxos.plus(withdrawableRewards).toString(),
       reserves: epochs[0]?.adaPots.reserves
     }
   }
@@ -265,63 +266,63 @@ export class HasuraClient {
       gql`${query}`,
       { address, atBlock }
     )
-    const map = new Map<Asset['assetId'], AssetBalance>()
-    for (const utxo of result.utxos as TransactionOutput[]) {
-      if (map.has('ada')) {
-        const current = map.get('ada')
-        map.set('ada', {
-          ...current,
-          ...{
-            quantity: new BigNumber(current.quantity)
-              .plus(new BigNumber(utxo.value))
-              .toString()
-          }
-        })
-      } else {
-        map.set('ada', {
-          asset: {
-            assetId: '\\xada',
-            assetName: '\\xada',
-            name: 'ada',
-            policyId: '\\xada',
-            tokenMints: [],
-            tokenMints_aggregate: {
-              aggregate: {
-                count: 'na',
-                max: {
-                  quantity: 'na'
-                },
-                min: {
-                  quantity: 'na'
-                },
-                sum: {
-                  quantity: 'na'
-                }
-              },
-              nodes: []
-            }
-          },
-          quantity: utxo.value
-        })
-      }
-      for (const token of utxo.tokens as Token[]) {
-        if (map.has(token.asset.assetId)) {
-          const current = map.get(token.asset.assetId)
-          map.set(token.asset.assetId, {
-            ...current,
-            ...{
-              quantity: new BigNumber(current.quantity)
-                .plus(new BigNumber(token.quantity))
-                .toString()
-            }
-          })
-        } else {
-          map.set(token.asset.assetId, token as unknown as AssetBalance)
-        }
-      }
-    }
+    // const map = new Map<Asset['assetId'], AssetBalance>()
+    // for (const utxo of result.utxos as TransactionOutput[]) {
+    //   if (map.has('ada')) {
+    //     const current = map.get('ada')
+    //     map.set('ada', {
+    //       ...current,
+    //       ...{
+    //         quantity: new BigNumber(current.quantity)
+    //           .plus(new BigNumber(utxo.value))
+    //           .toString()
+    //       }
+    //     })
+    //   } else {
+    //     map.set('ada', {
+    //       asset: {
+    //         assetId: '\\xada',
+    //         assetName: '\\xada',
+    //         name: 'ada',
+    //         policyId: '\\xada',
+    //         tokenMints: [],
+    //         tokenMints_aggregate: {
+    //           aggregate: {
+    //             count: 'na',
+    //             max: {
+    //               quantity: 'na'
+    //             },
+    //             min: {
+    //               quantity: 'na'
+    //             },
+    //             sum: {
+    //               quantity: 'na'
+    //             }
+    //           },
+    //           nodes: []
+    //         }
+    //       },
+    //       quantity: utxo.value
+    //     })
+    //   }
+    //   for (const token of utxo.tokens as Token[]) {
+    //     if (map.has(token.asset.assetId)) {
+    //       const current = map.get(token.asset.assetId)
+    //       map.set(token.asset.assetId, {
+    //         ...current,
+    //         ...{
+    //           quantity: new BigNumber(current.quantity)
+    //             .plus(new BigNumber(token.quantity))
+    //             .toString()
+    //         }
+    //       })
+    //     } else {
+    //       map.set(token.asset.assetId, token as unknown as AssetBalance)
+    //     }
+    //   }
+    // }
     return {
-      assetBalances: [...map.values()],
+      // assetBalances: [...map.values()],
       utxosCount: result.utxos_aggregate.aggregate.count
     }
   }

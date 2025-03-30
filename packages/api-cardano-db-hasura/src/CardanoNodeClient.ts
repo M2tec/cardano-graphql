@@ -1,4 +1,5 @@
-import { AssetSupply, Transaction } from './graphql_types'
+// import { AssetSupply, Transaction } from './graphql_types'
+import { Transaction } from './graphql_types' //
 import pRetry from 'p-retry'
 import util, { DataFetcher, errors, ModuleState } from '@cardano-graphql/util'
 import {
@@ -16,7 +17,7 @@ const MODULE_NAME = 'CardanoNodeClient'
 
 export class CardanoNodeClient {
   readonly networkParams: string[]
-  public adaCirculatingSupply: AssetSupply['circulating']
+  // public adaCirculatingSupply: AssetSupply['circulating']
   private stateQueryClient: LedgerStateQueryClient
   private txSubmissionClient: TransactionSubmissionClient
   private state: ModuleState

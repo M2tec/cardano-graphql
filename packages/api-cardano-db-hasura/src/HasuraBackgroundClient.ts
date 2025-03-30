@@ -5,13 +5,14 @@ import { GraphQLClient, gql } from 'graphql-request'
 import pRetry from 'p-retry'
 import path from 'path'
 import { dummyLogger, Logger } from 'ts-log'
-import { Asset, Block } from './graphql_types'
-import { AssetMetadataAndHash, AssetMetadataHashAndId, AssetWithoutTokens } from './typeAliases'
+// import { Asset, Block } from './graphql_types'
+import { Block } from './graphql_types'
+// import { AssetMetadataAndHash, AssetMetadataHashAndId, AssetWithoutTokens } from './typeAliases'
 import { Schema } from '@cardano-ogmios/client'
 
 const epochInformationNotYetAvailable = 'Epoch information not yet available. This is expected during the initial chain-sync.'
 
-const withHexPrefix = (value: string) => `\\x${value !== undefined ? value : ''}`
+// const withHexPrefix = (value: string) => `\\x${value !== undefined ? value : ''}`
 
 export class HasuraBackgroundClient {
   private client: GraphQLClient
@@ -137,27 +138,27 @@ export class HasuraBackgroundClient {
     return result.delete_assets.affected_rows
   }
 
-  public async hasAsset (assetId: Asset['assetId']): Promise<boolean> {
-    const result = await this.client.request(
-      gql`query HasAsset (
-          $assetId: bytea!
-      ) {
-          assets (
-              where: { assetId: { _eq: $assetId }}
-          ) {
-              assetId
-          }
-      }`, {
-        assetId: withHexPrefix(assetId)
-      }
-    )
-    const response = result.assets.length > 0
-    this.logger.debug(
-      { module: 'HasuraClient', assetId, hasAsset: response },
-      'Has asset?'
-    )
-    return response
-  }
+  // public async hasAsset (assetId: Asset['assetId']): Promise<boolean> {
+  //   const result = await this.client.request(
+  //     gql`query HasAsset (
+  //         $assetId: bytea!
+  //     ) {
+  //         assets (
+  //             where: { assetId: { _eq: $assetId }}
+  //         ) {
+  //             assetId
+  //         }
+  //     }`, {
+  //       assetId: withHexPrefix(assetId)
+  //     }
+  //   )
+  //   const response = result.assets.length > 0
+  //   this.logger.debug(
+  //     { module: 'HasuraClient', assetId, hasAsset: response },
+  //     'Has asset?'
+  //   )
+  //   return response
+  // }
 
   public async getMostRecentPointWithNewAsset (): Promise<Schema.Point | null> {
     let point: Schema.Point | null
@@ -205,107 +206,107 @@ export class HasuraBackgroundClient {
     return point
   }
 
-  public async addAssetMetadata (asset: AssetMetadataAndHash) {
-    this.logger.info(
-      { module: 'HasuraClient', assetId: asset.assetId },
-      'Adding metadata to asset'
-    )
-    const result = await this.client.request(
-      gql`mutation AddAssetMetadata(
-          $assetId: bytea!
-          $decimals: Int
-          $description: String
-          $logo: String
-          $metadataHash: bpchar!
-          $name: String
-          $ticker: String
-          $url: String
-      ) {
-          update_assets(
-              where: {
-                  assetId: { _eq: $assetId }
-              },
-              _set: {
-                  decimals: $decimals
-                  description: $description
-                  logo: $logo
-                  metadataHash: $metadataHash
-                  name: $name
-                  ticker: $ticker
-                  url: $url
-              }
-          ) {
-              affected_rows
-              returning {
-                  assetId
-              }
-          }
-      }`,
-      {
-        ...asset,
-        ...{ assetId: withHexPrefix(asset.assetId) }
-      }
-    )
-    if (result.errors !== undefined) {
-      throw new Error(result.errors)
-    }
-  }
+  // public async addAssetMetadata (asset: AssetMetadataAndHash) {
+  //   this.logger.info(
+  //     { module: 'HasuraClient', assetId: asset.assetId },
+  //     'Adding metadata to asset'
+  //   )
+  //   const result = await this.client.request(
+  //     gql`mutation AddAssetMetadata(
+  //         $assetId: bytea!
+  //         $decimals: Int
+  //         $description: String
+  //         $logo: String
+  //         $metadataHash: bpchar!
+  //         $name: String
+  //         $ticker: String
+  //         $url: String
+  //     ) {
+  //         update_assets(
+  //             where: {
+  //                 assetId: { _eq: $assetId }
+  //             },
+  //             _set: {
+  //                 decimals: $decimals
+  //                 description: $description
+  //                 logo: $logo
+  //                 metadataHash: $metadataHash
+  //                 name: $name
+  //                 ticker: $ticker
+  //                 url: $url
+  //             }
+  //         ) {
+  //             affected_rows
+  //             returning {
+  //                 assetId
+  //             }
+  //         }
+  //     }`,
+  //     {
+  //       ...asset,
+  //       ...{ assetId: withHexPrefix(asset.assetId) }
+  //     }
+  //   )
+  //   if (result.errors !== undefined) {
+  //     throw new Error(result.errors)
+  //   }
+  // }
 
-  public async insertAssets (assets: AssetWithoutTokens[]) {
-    this.logger.debug(
-      { module: 'HasuraClient', qty: assets.length },
-      'inserting assets found in tokens'
-    )
-    const result = await this.client.request(
-      gql`mutation InsertAssets($assets: [Asset_insert_input!]!) {
-          insert_assets(
-              objects: $assets,
-              on_conflict: {
-                  constraint: Asset_pkey,
-                  update_columns: []
-              }
-          ) {
-              returning {
-                  name
-                  policyId
-                  description
-                  assetName
-                  assetId
-              }
-              affected_rows
-          }
-      }`,
-      {
-        assets: assets.map(asset => ({
-          ...asset,
-          ...{
-            assetId: withHexPrefix(asset.assetId),
-            assetName: withHexPrefix(asset.assetName),
-            policyId: withHexPrefix(asset.policyId)
-          }
-        }))
-      }
-    )
-    return result
-  }
+  // public async insertAssets (assets: AssetWithoutTokens[]) {
+  //   this.logger.debug(
+  //     { module: 'HasuraClient', qty: assets.length },
+  //     'inserting assets found in tokens'
+  //   )
+  //   const result = await this.client.request(
+  //     gql`mutation InsertAssets($assets: [Asset_insert_input!]!) {
+  //         insert_assets(
+  //             objects: $assets,
+  //             on_conflict: {
+  //                 constraint: Asset_pkey,
+  //                 update_columns: []
+  //             }
+  //         ) {
+  //             returning {
+  //                 name
+  //                 policyId
+  //                 description
+  //                 assetName
+  //                 assetId
+  //             }
+  //             affected_rows
+  //         }
+  //     }`,
+  //     {
+  //       assets: assets.map(asset => ({
+  //         ...asset,
+  //         ...{
+  //           assetId: withHexPrefix(asset.assetId),
+  //           assetName: withHexPrefix(asset.assetName),
+  //           policyId: withHexPrefix(asset.policyId)
+  //         }
+  //       }))
+  //     }
+  //   )
+  //   return result
+  // }
 
-  public async getAssetMetadataHashesById (assetIds: Asset['assetId'][]): Promise<AssetMetadataHashAndId[]> {
-    const result = await this.client.request(
-      gql`query AssetMetadataHashes (
-          $assetIds: [bytea!]!
-      ){
-          assets (
-              where: {
-                  assetId: { _in: $assetIds }
-              }) {
-              assetId
-              metadataHash
-          }
-      }`,
-      {
-        assetIds: assetIds.map(id => withHexPrefix(id))
-      }
-    )
-    return result.assets
-  }
+  // public async getAssetMetadataHashesById (assetIds: Asset['assetId'][]): Promise<AssetMetadataHashAndId[]> {
+  //   const result = await this.client.request(
+  //     gql`query AssetMetadataHashes (
+  //         $assetIds: [bytea!]!
+  //     ){
+  //         assets (
+  //             where: {
+  //                 assetId: { _in: $assetIds }
+  //             }) {
+  //             assetId
+  //             metadataHash
+  //         }
+  //     }`,
+  //     {
+  //       assetIds: assetIds.map(id => withHexPrefix(id))
+  //     }
+  //   )
+  //   return result.assets
+  // }
 }

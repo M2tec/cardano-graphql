@@ -153,7 +153,7 @@ export async function buildSchema (
             }
             return {
               supply: {
-                circulating: adaPots.circulating,
+                // circulating: adaPots.circulating,
                 max: genesis.shelley.maxLovelaceSupply,
                 total: new BigNumber(genesis.shelley.maxLovelaceSupply)
                   .minus(new BigNumber(adaPots.reserves))

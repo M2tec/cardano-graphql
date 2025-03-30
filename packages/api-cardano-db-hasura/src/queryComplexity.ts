@@ -135,7 +135,7 @@ const calculateOrderByComplexity = (orderBy: any[]): number => {
 export const defaultComplexity: FieldsComplexityMapping = {
   Query: {
     activeStake_aggregate: { extensions: { baseCost: 2 } },
-    assets_aggregate: { extensions: { baseCost: 2 } },
+    // assets_aggregate: { extensions: { baseCost: 2 } },
     blocks_aggregate: { extensions: { baseCost: 10 } },
     collateralInputs_aggregate: { extensions: { baseCost: 4 } },
     collateralOutputs_aggregate: { extensions: { baseCost: 4 } },
@@ -153,7 +153,7 @@ export const defaultComplexity: FieldsComplexityMapping = {
     withdrawals_aggregate: { extensions: { baseCost: 2 } }
   },
   ActiveStake_aggregate_fields: aggregateFieldsCosts(),
-  Asset_aggregate_fields: aggregateFieldsCosts(['count']),
+  // Asset_aggregate_fields: aggregateFieldsCosts(['count']),
   Block_aggregate_fields: aggregateFieldsCosts(),
   CollateralInput_aggregate_fields: aggregateFieldsCosts(),
   CollateralOutput_aggregate_fields: aggregateFieldsCosts(),

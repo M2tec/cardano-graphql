@@ -1,6 +1,7 @@
 import { createLogger, LogLevelString } from 'bunyan'
 // import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
-import { Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
+// import { Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
+import { Db, HasuraBackgroundClient, Worker } from './index'
 import onDeath from 'death'
 import { Logger } from 'ts-log'
 import { CustomError } from 'ts-custom-error'
@@ -161,20 +162,20 @@ function filterAndTypecastEnvs (env: any) {
     //   logger,
     //   config.db
     // )
-    const metadataClient = new MetadataClient(
-      config.metadataServerUri,
-      logger
-    )
+    // const metadataClient = new MetadataClient(
+    //   config.metadataServerUri,
+    //   logger
+    // )
     const worker = new Worker(
       hasuraBackgroundClient,
       logger,
-      metadataClient,
-      config.db,
-      {
-        metadataUpdateInterval: {
-          assets: config.metadataUpdateInterval?.assets
-        }
-      }
+      // metadataClient,
+      // config.db,
+      // {
+      //   metadataUpdateInterval: {
+      //     assets: config.metadataUpdateInterval?.assets
+      //   }
+      // }
     )
     const db = new Db(config.db, logger)
     // const getChainSyncPoints = async (): Promise<PointOrOrigin[]> => {
