@@ -1,8 +1,8 @@
-version: "3.8"
-
 services:
   postgres:
-    image: postgres:${POSTGRES_VERSION:-14.10-alpine}
+    build:
+      context: ./src/postgres  
+    # image: postgres:${POSTGRES_VERSION:-14.10-alpine}
     environment:
       - POSTGRES_LOGGING=true
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
@@ -10,7 +10,7 @@ services:
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
     ports:
       - ${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}
-    command: -p ${POSTGRES_PORT:-5432}
+    # command: -p ${POSTGRES_PORT:-5432} 
     secrets:
       - postgres_db
       - postgres_password
@@ -85,8 +85,8 @@ services:
         max-file: "10"
 
   hasura:
-    build:
-      context: ./packages/api-cardano-db-hasura/hasura
+    # build:
+    #   context: ./packages/api-cardano-db-hasura/hasura
     image: cardanofoundation/cardano-graphql-hasura:${CARDANO_GRAPHQL_VERSION:-8.3.3}
     ports:
       - ${HASURA_PORT:-8090}:8080
@@ -95,7 +95,7 @@ services:
     restart: on-failure
     environment:
       - HASURA_GRAPHQL_ENABLE_CONSOLE=true
-      - HASURA_GRAPHQL_CORS_DOMAIN=http://localhost:9695
+      # - HASURA_GRAPHQL_CORS_DOMAIN=http://localhost:9695
       - POSTGRES_PORT=${POSTGRES_PORT:-5432}
     secrets:
       - postgres_db
@@ -107,74 +107,102 @@ services:
         max-size: "200k"
         max-file: "10"
 
-  background:
+  pgadmin:
+    # image: dpage/pgadmin4
     build:
-      context: .
-      target: background
-    image: cardanofoundation/cardano-graphql-background:${CARDANO_GRAPHQL_VERSION:-8.3.3}-${NETWORK:-mainnet}
-    depends_on:
-      - "hasura"
-      - "postgres"
-    environment:
-      - LOGGER_MIN_SEVERITY=${LOGGER_MIN_SEVERITY:-info}
-      - METADATA_SERVER_URI=${METADATA_SERVER_URI:-http://token-metadata-registry:${TOKEN_REGISTRY_PORT:-8080}}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - CHAIN_FOLLOWER_START_SLOT=${CHAIN_FOLLOWER_START_SLOT:-0}
-      - CHAIN_FOLLOWER_START_ID=${CHAIN_FOLLOWER_START_ID:-}
-    restart: on-failure
-    secrets:
-      - postgres_db
-      - postgres_password
-      - postgres_user
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  server:
-    platform: linux/x86_64
-    build:
+      context: ./src/pgadmin
       args:
-        - NETWORK=${NETWORK:-mainnet}
-      context: .
-      target: server
-    image: cardanofoundation/cardano-graphql-server:${CARDANO_GRAPHQL_VERSION:-8.3.3}-${NETWORK:-mainnet}
+        NETWORK: ${NETWORK}
+        # POSTGRES_DB: ${POSTGRES_DB}
+        # POSTGRES_USER: ${POSTGRES_USER}
+        # POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    restart: always
     environment:
-      - ALLOW_INTROSPECTION=true
-      - CACHE_ENABLED=true
-      - LOGGER_MIN_SEVERITY=${LOGGER_MIN_SEVERITY:-info}
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-    expose:
-      - ${API_PORT:-3100}
-    ports:
-      - ${API_PORT:-3100}:3100
-    restart: on-failure
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "200k"
-        max-file: "10"
-
-  token-metadata-registry:
-    build:
-      context: .
-      target: token-registry
-    ports:
-      - ${TOKEN_REGISTRY_PORT:-8080}:8080
-    environment:
-      - TOKEN_METADATA_SYNC_JOB=true
-      - POSTGRES_PORT=${POSTGRES_PORT:-5432}
-      - POSTGRES_HOST=postgres
-      - DB_SCHEMA=tokenregistry
-      - NETWORK=${NETWORK:-mainnet}
+        PGADMIN_LISTEN_PORT: 80
+        POSTGRES_DB_FILE: /run/secrets/postgres_db
+        POSTGRES_PASSWORD_FILE: =/run/secrets/postgres_password
+        POSTGRES_USER_FILE: /run/secrets/postgres_user        
     secrets:
       - postgres_db
       - postgres_password
-      - postgres_user
-    restart: on-failure
-    depends_on:
-      - postgres
+      - postgres_user        
+    ports:
+        - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+        - pgadmin-data:/var/lib/pgadmin
+    # depends_on:
+    #   postgres:
+    #     condition: service_healthy
+
+
+  # background:
+  #   build:
+  #     context: .
+  #     target: background
+  #   image: cardanofoundation/cardano-graphql-background:${CARDANO_GRAPHQL_VERSION:-8.3.3}-${NETWORK:-mainnet}
+  #   depends_on:
+  #     - "hasura"
+  #     - "postgres"
+  #   environment:
+  #     - LOGGER_MIN_SEVERITY=${LOGGER_MIN_SEVERITY:-info}
+  #     - METADATA_SERVER_URI=${METADATA_SERVER_URI:-http://token-metadata-registry:${TOKEN_REGISTRY_PORT:-8080}}
+  #     - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+  #     - CHAIN_FOLLOWER_START_SLOT=${CHAIN_FOLLOWER_START_SLOT:-0}
+  #     - CHAIN_FOLLOWER_START_ID=${CHAIN_FOLLOWER_START_ID:-}
+  #   restart: on-failure
+  #   secrets:
+  #     - postgres_db
+  #     - postgres_password
+  #     - postgres_user
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "200k"
+  #       max-file: "10"
+
+  # server:
+  #   platform: linux/x86_64
+  #   build:
+  #     args:
+  #       - NETWORK=${NETWORK:-mainnet}
+  #     context: .
+  #     target: server
+  #   image: cardanofoundation/cardano-graphql-server:${CARDANO_GRAPHQL_VERSION:-8.3.3}-${NETWORK:-mainnet}
+  #   environment:
+  #     - ALLOW_INTROSPECTION=true
+  #     - CACHE_ENABLED=true
+  #     - LOGGER_MIN_SEVERITY=${LOGGER_MIN_SEVERITY:-info}
+  #     - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+  #   expose:
+  #     - ${API_PORT:-3100}
+  #   ports:
+  #     - ${API_PORT:-3100}:3100
+  #   restart: on-failure
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "200k"
+  #       max-file: "10"
+
+  # token-metadata-registry:
+  #   build:
+  #     context: .
+  #     target: token-registry
+  #   ports:
+  #     - ${TOKEN_REGISTRY_PORT:-8080}:8080
+  #   environment:
+  #     - TOKEN_METADATA_SYNC_JOB=true
+  #     - POSTGRES_PORT=${POSTGRES_PORT:-5432}
+  #     - POSTGRES_HOST=postgres
+  #     - DB_SCHEMA=tokenregistry
+  #     - NETWORK=${NETWORK:-mainnet}
+  #   secrets:
+  #     - postgres_db
+  #     - postgres_password
+  #     - postgres_user
+  #   restart: on-failure
+  #   depends_on:
+  #     - postgres
 
 secrets:
   postgres_db:
@@ -188,3 +216,4 @@ volumes:
   node-db:
   node-ipc:
   postgres14-data:
+  pgadmin-data:

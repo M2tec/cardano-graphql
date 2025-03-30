@@ -1,11 +1,12 @@
 import { createLogger, LogLevelString } from 'bunyan'
-import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
+// import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
+import { Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
 import onDeath from 'death'
 import { Logger } from 'ts-log'
 import { CustomError } from 'ts-custom-error'
 import fs from 'fs-extra'
 import { DbConfig } from './typeAliases'
-import { PointOrOrigin } from '@cardano-ogmios/schema'
+// import { PointOrOrigin } from '@cardano-ogmios/schema'
 // Todo: Hoist to util package next major version
 export class MissingConfig extends CustomError {
   public constructor (message: string) {
@@ -75,18 +76,18 @@ async function getConfig (): Promise<BackgroundConfig> {
   } catch (error) {
     throw new MissingConfig('Database configuration cannot be read')
   }
-  let chainfollower
-  if (env.chainfollower) {
-    chainfollower = {
-      id: env.chainfollower.id,
-      slot: env.chainfollower.slot
-    }
-  }
+  // let chainfollower
+  // if (env.chainfollower) {
+  //   chainfollower = {
+  //     id: env.chainfollower.id,
+  //     slot: env.chainfollower.slot
+  //   }
+  // }
   const { postgres, ...selectedEnv } = env
   return {
     ...selectedEnv,
     db,
-    chainfollower,
+    // chainfollower,
     loggerMinSeverity: env.loggerMinSeverity || 'info' as LogLevelString
   }
 }
@@ -155,11 +156,11 @@ function filterAndTypecastEnvs (env: any) {
       config.hasuraUri,
       logger
     )
-    const chainFollower = new ChainFollower(
-      hasuraBackgroundClient,
-      logger,
-      config.db
-    )
+    // const chainFollower = new ChainFollower(
+    //   hasuraBackgroundClient,
+    //   logger,
+    //   config.db
+    // )
     const metadataClient = new MetadataClient(
       config.metadataServerUri,
       logger
@@ -176,19 +177,19 @@ function filterAndTypecastEnvs (env: any) {
       }
     )
     const db = new Db(config.db, logger)
-    const getChainSyncPoints = async (): Promise<PointOrOrigin[]> => {
-      const mostRecentPoint = await hasuraBackgroundClient.getMostRecentPointWithNewAsset()
-      return mostRecentPoint !== null ? [mostRecentPoint, 'origin'] : ['origin']
-    }
+    // const getChainSyncPoints = async (): Promise<PointOrOrigin[]> => {
+    //   const mostRecentPoint = await hasuraBackgroundClient.getMostRecentPointWithNewAsset()
+    //   return mostRecentPoint !== null ? [mostRecentPoint, 'origin'] : ['origin']
+    // }
     await db.init({
       onDbInit: () => hasuraBackgroundClient.shutdown(),
       onDbSetup: async () => {
         try {
           await hasuraBackgroundClient.initialize()
-          await metadataClient.initialize()
-          await chainFollower.initialize(config.ogmios, getChainSyncPoints)
-          await worker.start()
-          await chainFollower.start(await getChainSyncPoints())
+          // await metadataClient.initialize()
+          // await chainFollower.initialize(config.ogmios, getChainSyncPoints)
+          // await worker.start()
+          // await chainFollower.start(await getChainSyncPoints())
         } catch (error) {
           logger.error(error.message)
           process.exit(1)
@@ -199,7 +200,7 @@ function filterAndTypecastEnvs (env: any) {
       await Promise.all([
         hasuraBackgroundClient.shutdown,
         worker.shutdown,
-        chainFollower.shutdown,
+        // chainFollower.shutdown,
         db.shutdown
       ])
       process.exit(1)
