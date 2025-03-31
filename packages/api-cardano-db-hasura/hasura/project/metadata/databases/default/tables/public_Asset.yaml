@@ -40,7 +40,7 @@ insert_permissions:
         - assetName
         - decimals
         - description
-        - fingerprint
+        # - fingerprint
         - firstAppearedInSlot
         - logo
         - metadataHash
@@ -55,7 +55,7 @@ select_permissions:
         - assetId
         - assetName
         - policyId
-        - fingerprint
+        # - fingerprint
         - metadataHash
         - description
         - logo
@@ -74,7 +74,7 @@ update_permissions:
         - assetId
         - assetName
         - policyId
-        - fingerprint
+        # - fingerprint
         - metadataHash
         - description
         - logo

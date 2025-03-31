@@ -18,7 +18,8 @@ import {
 import { allowListMiddleware } from './express_middleware'
 import { dummyLogger, Logger } from 'ts-log'
 import { clearIntervalAsync, setIntervalAsync, SetIntervalAsyncTimer } from 'set-interval-async/dynamic'
-import { clamp, RunnableModuleState } from '@cardano-graphql/util'
+// import { clamp, RunnableModuleState } from '@cardano-graphql/util'
+import { RunnableModuleState } from '@cardano-graphql/util'
 
 export type Config = {
   allowIntrospection: boolean
@@ -120,22 +121,31 @@ export class Server {
     this.logger.debug({ module: 'Server' }, 'Checking DB status')
     this.syncProgress = setIntervalAsync(async () => {
       const result = await this.apolloServer.executeOperation(
+        // {
+        //   query: `
+        //     query getSyncStatus {
+        //       cardanoDbMeta {
+        //           initialized
+        //           syncPercentage
+        //       }
+        //       assets_aggregate {
+        //         aggregate {
+        //           count
+        //         }
+        //       }
+        //       tokenMints_aggregate(distinct_on: assetId) {
+        //         aggregate {
+        //           count
+        //         }
+        //       }
+        //   }`
+        // }
         {
           query: `
             query getSyncStatus {
               cardanoDbMeta {
                   initialized
                   syncPercentage
-              }
-              assets_aggregate {
-                aggregate {
-                  count
-                }
-              }
-              tokenMints_aggregate(distinct_on: assetId) {
-                aggregate {
-                  count
-                }
               }
           }`
         }
@@ -144,16 +154,18 @@ export class Server {
         this.logger.debug({ module: 'Server' }, JSON.stringify(result.errors))
         return
       }
-      const assetSyncPercentage = Number(result.data.tokenMints_aggregate.aggregate.count) === 0
-        ? 0
-        : clamp(Math.max(Math.round(Number(result.data.assets_aggregate.aggregate.count) / Number(result.data.tokenMints_aggregate.aggregate.count) * 100)), 0, 100)
-      if (result.data.cardanoDbMeta.initialized && assetSyncPercentage > 99) {
+      // const assetSyncPercentage = Number(result.data.tokenMints_aggregate.aggregate.count) === 0
+      //   ? 0
+      //   : clamp(Math.max(Math.round(Number(result.data.assets_aggregate.aggregate.count) / Number(result.data.tokenMints_aggregate.aggregate.count) * 100)), 0, 100)
+      // if (result.data.cardanoDbMeta.initialized && assetSyncPercentage > 99) {
+      if (result.data.cardanoDbMeta.initialized) {
         this.logger.info({ module: 'Server' }, 'DB ready')
         // Promise not awaited purposely
         // https://github.com/input-output-hk/cardano-graphql/issues/459
         clearIntervalAsync(this.syncProgress)
       } else {
-        this.logger.info({ module: 'Server' }, `Sync Progress: cardano-db-sync: ${result.data.cardanoDbMeta.syncPercentage}% | Asset: ${assetSyncPercentage}%`)
+        // this.logger.info({ module: 'Server' }, `Sync Progress: cardano-db-sync: ${result.data.cardanoDbMeta.syncPercentage}% | Asset: ${assetSyncPercentage}%`)
+        this.logger.info({ module: 'Server' }, `Sync Progress: cardano-db-sync: ${result.data.cardanoDbMeta.syncPercentage}%`)
       }
     }, 5000)
   }
