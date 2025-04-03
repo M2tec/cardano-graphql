@@ -3,31 +3,28 @@ DROP SCHEMA IF EXISTS token_registry CASCADE;
 CREATE SCHEMA token_registry;
 
 CREATE TABLE token_registry.metadata (
-    -- id SERIAL PRIMARY KEY,
-    subject VARCHAR(255),
-    -- sequence_number TEXT,
+    subject VARCHAR(255) PRIMARY KEY,
     policy VARCHAR(255),
     name VARCHAR(255),
     ticker VARCHAR(32),
     url VARCHAR(255),
-    description TEXT,
+    description VARCHAR,
     decimals INTEGER,
     updated TEXT,
     updated_by VARCHAR(255),
     properties JSONB,
-    textsearch TSVECTOR
+    textsearch TSVECTOR,
+	logo TEXT,
+    "metadataHash" CHAR(40)
 );
 
 CREATE TABLE token_registry.logo (
-    -- id SERIAL PRIMARY KEY,
-    subject VARCHAR(255),
-    -- sequence_number TEXT,
+    subject VARCHAR(255) PRIMARY KEY,
     logo TEXT
 );
 
-copy token_registry.metadata (
+COPY token_registry.metadata (
     subject, 
-    -- sequence_number,
     policy, 
     name, 
     ticker, 
@@ -37,21 +34,22 @@ copy token_registry.metadata (
     updated, 
     updated_by, 
     properties, 
-    textsearch) 
-from '/mydata/cip-26-metadata.csv'
-with
+    textsearch,
+	logo) 
+FROM '/mydata/token-registry/cip-26-metadata.csv'
+WITH
 (
  format 'csv',
  header 'true',
  delimiter ','
 );
 
-copy token_registry.logo (
+COPY token_registry.logo (
     subject, 
     -- sequence_number,
     logo) 
-from '/mydata/cip-26-logodata.csv'
-with
+FROM '/mydata/token-registry/cip-26-logodata.csv'
+WITH
 (
  format 'csv',
  header 'true',

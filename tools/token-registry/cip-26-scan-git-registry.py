@@ -6,7 +6,7 @@ import csv
 import re
 
 # Folder containing JSON files
-folder_path = "../../metadata-registry-testnet/registry"
+folder_path = "../../../metadata-registry-testnet/registry"
 metadata_output_file = "cip-26-metadata.csv"
 logodata_output_file = "cip-26-logodata.csv"
 
@@ -63,7 +63,8 @@ for filename in os.listdir(folder_path):
                 "updated": "",
                 "updated_by": "",
                 "properties": "",
-                "textsearch": ""
+                "textsearch": "",
+                "logo": json_data.get("logo", {}).get("value", "")
             }
 
             metadata_rows.append(row)
@@ -87,7 +88,7 @@ print("Assets stored: " + str(i))
 
 # Write to CSV
 with open(metadata_output_file, "w", newline="", encoding="utf-8") as csvfile:
-    fieldnames = ["subject", "policy", "name", "ticker", "url", "description", "decimals", "updated", "updated_by", "properties", "textsearch"]
+    fieldnames = ["subject", "policy", "name", "ticker", "url", "description", "decimals", "updated", "updated_by", "properties", "textsearch", "logo"]
     writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
     # Write header
