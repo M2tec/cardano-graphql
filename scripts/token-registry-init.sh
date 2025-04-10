@@ -12,7 +12,7 @@ case "$NETWORK" in
       export GITHUB_MAPPINGS_FOLDER=mappings
       ;;
     preprod|preview|testnet)
-      export GITHUB_ORGANIZATION=input-output-hk
+      export GITHUB_ORGANIZATION=m2tec  ## input-output-hk has some malformed assets with "amSignature" property
       export GITHUB_PROJECT_NAME=metadata-registry-testnet
       export GITHUB_MAPPINGS_FOLDER=registry
       ;;
