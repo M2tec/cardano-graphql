@@ -1,4 +1,5 @@
 DROP VIEW IF EXISTS
+"Asset",
 "AdaPots",
 "ActiveStake",
 "Block",

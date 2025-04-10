@@ -5,7 +5,7 @@ import { Logger } from 'ts-log'
 import { CustomError } from 'ts-custom-error'
 import fs from 'fs-extra'
 import { DbConfig } from './typeAliases'
-import { PointOrOrigin } from '@cardano-ogmios/schema'
+// import { PointOrOrigin } from '@cardano-ogmios/schema'
 // Todo: Hoist to util package next major version
 export class MissingConfig extends CustomError {
   public constructor (message: string) {
@@ -176,19 +176,19 @@ function filterAndTypecastEnvs (env: any) {
       }
     )
     const db = new Db(config.db, logger)
-    const getChainSyncPoints = async (): Promise<PointOrOrigin[]> => {
-      const mostRecentPoint = await hasuraBackgroundClient.getMostRecentPointWithNewAsset()
-      return mostRecentPoint !== null ? [mostRecentPoint, 'origin'] : ['origin']
-    }
+    // const getChainSyncPoints = async (): Promise<PointOrOrigin[]> => {
+    //   const mostRecentPoint = await hasuraBackgroundClient.getMostRecentPointWithNewAsset()
+    //   return mostRecentPoint !== null ? [mostRecentPoint, 'origin'] : ['origin']
+    // }
     await db.init({
       onDbInit: () => hasuraBackgroundClient.shutdown(),
       onDbSetup: async () => {
         try {
           await hasuraBackgroundClient.initialize()
-          await metadataClient.initialize()
-          await chainFollower.initialize(config.ogmios, getChainSyncPoints)
-          await worker.start()
-          await chainFollower.start(await getChainSyncPoints())
+          // await metadataClient.initialize()
+          // await chainFollower.initialize(config.ogmios, getChainSyncPoints)
+          // await worker.start()
+          // await chainFollower.start(await getChainSyncPoints())
         } catch (error) {
           logger.error(error.message)
           process.exit(1)
