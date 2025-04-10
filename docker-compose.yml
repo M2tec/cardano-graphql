@@ -2,7 +2,9 @@ version: "3.8"
 
 services:
   postgres:
-    image: postgres:${POSTGRES_VERSION:-14.10-alpine}
+    # image: postgres:${POSTGRES_VERSION:-14.10-alpine}
+    build:
+      context: ./src/postgres
     environment:
       - POSTGRES_LOGGING=true
       - POSTGRES_DB_FILE=/run/secrets/postgres_db
@@ -10,14 +12,14 @@ services:
       - POSTGRES_USER_FILE=/run/secrets/postgres_user
     ports:
       - ${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}
-    command: -p ${POSTGRES_PORT:-5432}
+    command: postgres -c 'config_file=/etc/postgresql/postgresql.conf'
     secrets:
       - postgres_db
       - postgres_password
       - postgres_user
     shm_size: '2gb'
     volumes:
-      - postgres14-data:/var/lib/postgresql/data
+      - postgres-data:/var/lib/postgresql/data
     restart: on-failure
     logging:
       driver: "json-file"
@@ -215,5 +217,5 @@ volumes:
   db-sync-data:
   node-db:
   node-ipc:
-  postgres14-data:
+  postgres-data:
   pgadmin-data:
