@@ -200,6 +200,12 @@ services:
         - pgadmin-data:/var/lib/pgadmin
         - ./tools:/tools
 
+  get-hash:
+    build:
+      context: ./src/get-hash
+    ports:
+      - 3050:3050
+
 secrets:
   postgres_db:
     file: ./placeholder-secrets/postgres_db
