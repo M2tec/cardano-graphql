@@ -176,6 +176,34 @@ services:
     depends_on:
       - postgres
 
+
+  pgadmin:
+    build:
+      context: ./src/pgadmin
+      args:
+        NETWORK: ${NETWORK}
+    restart: always
+    environment:
+        PGADMIN_LISTEN_PORT: 80
+        POSTGRES_DB_FILE: /run/secrets/postgres_db
+        POSTGRES_PASSWORD_FILE: =/run/secrets/postgres_password
+        POSTGRES_USER_FILE: /run/secrets/postgres_user
+    secrets:
+      - postgres_db
+      - postgres_password
+      - postgres_user
+    ports:
+        - "${PGADMIN_PORT:-5050}:80"
+    volumes:
+        - pgadmin-data:/var/lib/pgadmin
+        - ./tools:/tools
+
+  get-hash:
+    build:
+      context: ./src/get-hash
+    ports:
+      - 3050:3050
+
 secrets:
   postgres_db:
     file: ./placeholder-secrets/postgres_db
@@ -188,3 +216,4 @@ volumes:
   node-db:
   node-ipc:
   postgres14-data:
+  pgadmin-data:
