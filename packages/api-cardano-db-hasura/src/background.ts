@@ -20,10 +20,6 @@ export interface BackgroundConfig {
   hasuraCliExtPath: string,
   hasuraUri: string,
   loggerMinSeverity: LogLevelString,
-  metadataServerUri: string,
-  metadataUpdateInterval?: {
-    assets: number
-  },
   ogmios?: {
     host?: string
     port?: number
@@ -40,9 +36,6 @@ async function getConfig (): Promise<BackgroundConfig> {
   }
   if (!env.hasuraUri) {
     throw new MissingConfig('HASURA_URI env not set')
-  }
-  if (!env.metadataServerUri) {
-    throw new MissingConfig('METADATA_SERVER_URI env not set')
   }
   if (!env.postgres.dbFile && !env.postgres.db) {
     throw new MissingConfig('POSTGRES_DB_FILE or POSTGRES_DB env not set')
@@ -81,12 +74,10 @@ async function getConfig (): Promise<BackgroundConfig> {
 
 function filterAndTypecastEnvs (env: any) {
   const {
-    ASSET_METADATA_UPDATE_INTERVAL,
     HASURA_CLI_PATH,
     HASURA_CLI_EXT_PATH,
     HASURA_URI,
     LOGGER_MIN_SEVERITY,
-    METADATA_SERVER_URI,
     OGMIOS_HOST,
     OGMIOS_PORT,
     POSTGRES_DB,
@@ -103,10 +94,6 @@ function filterAndTypecastEnvs (env: any) {
     hasuraCliExtPath: HASURA_CLI_EXT_PATH,
     hasuraUri: HASURA_URI,
     loggerMinSeverity: LOGGER_MIN_SEVERITY as LogLevelString,
-    metadataServerUri: METADATA_SERVER_URI,
-    metadataUpdateInterval: {
-      assets: ASSET_METADATA_UPDATE_INTERVAL ? Number(ASSET_METADATA_UPDATE_INTERVAL) : undefined
-    },
     ogmios: {
       host: OGMIOS_HOST,
       port: OGMIOS_PORT ? Number(OGMIOS_PORT) : undefined
