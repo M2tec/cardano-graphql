@@ -6,4 +6,4 @@ export * from './graphql_types'
 export * from './HasuraClient'
 export * from './HasuraBackgroundClient'
 export * from './typeAliases'
-export * from './Worker'
+

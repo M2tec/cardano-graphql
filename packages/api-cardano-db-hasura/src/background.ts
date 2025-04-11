@@ -1,5 +1,5 @@
 import { createLogger, LogLevelString } from 'bunyan'
-import { Db, HasuraBackgroundClient, Worker } from './index'
+import { Db, HasuraBackgroundClient } from './index'
 import onDeath from 'death'
 import { Logger } from 'ts-log'
 import { CustomError } from 'ts-custom-error'
@@ -137,18 +137,12 @@ function filterAndTypecastEnvs (env: any) {
       config.hasuraUri,
       logger
     )
-    const worker = new Worker(
-      hasuraBackgroundClient,
-      logger,
-      config.db,
-    )
     const db = new Db(config.db, logger)
     await db.init({
       onDbInit: () => hasuraBackgroundClient.shutdown(),
       onDbSetup: async () => {
         try {
           await hasuraBackgroundClient.initialize()
-          // await worker.start()
         } catch (error) {
           logger.error(error.message)
           process.exit(1)
@@ -158,7 +152,6 @@ function filterAndTypecastEnvs (env: any) {
     onDeath(async () => {
       await Promise.all([
         hasuraBackgroundClient.shutdown,
-        worker.shutdown,
         db.shutdown
       ])
       process.exit(1)
