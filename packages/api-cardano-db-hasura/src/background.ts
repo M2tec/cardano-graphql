@@ -1,5 +1,5 @@
 import { createLogger, LogLevelString } from 'bunyan'
-import { Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
+import { Db, HasuraBackgroundClient, Worker } from './index'
 import onDeath from 'death'
 import { Logger } from 'ts-log'
 import { CustomError } from 'ts-custom-error'
@@ -137,20 +137,10 @@ function filterAndTypecastEnvs (env: any) {
       config.hasuraUri,
       logger
     )
-    const metadataClient = new MetadataClient(
-      config.metadataServerUri,
-      logger
-    )
     const worker = new Worker(
       hasuraBackgroundClient,
       logger,
-      metadataClient,
       config.db,
-      {
-        metadataUpdateInterval: {
-          assets: config.metadataUpdateInterval?.assets
-        }
-      }
     )
     const db = new Db(config.db, logger)
     await db.init({
@@ -158,7 +148,6 @@ function filterAndTypecastEnvs (env: any) {
       onDbSetup: async () => {
         try {
           await hasuraBackgroundClient.initialize()
-          // await metadataClient.initialize()
           // await worker.start()
         } catch (error) {
           logger.error(error.message)
