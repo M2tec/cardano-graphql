@@ -2,7 +2,7 @@
 
 -- noinspection SqlDialectInspectionForFile
 
-CREATE OR REPLACE VIEW "AdaPots" AS
+CREATE MATERIALIZED VIEW "AdaPots" AS
   SELECT
     epoch_no AS "epochNo",
     deposits_stake,
@@ -33,9 +33,8 @@ FROM ada_pots;
 
 -- Recreating the "Asset table in postgresql statements"
 
-DROP SCHEMA IF EXISTS testing CASCADE;
-
 CREATE EXTENSION IF NOT EXISTS pg_curl;
+
 
 CREATE OR REPLACE FUNCTION post(url TEXT, request JSON) RETURNS TEXT LANGUAGE SQL AS $BODY$
     WITH s AS (SELECT
@@ -51,7 +50,7 @@ $BODY$;
 
 -- Modified ma_tx_mint table where only first mint is selected
 
-CREATE OR REPLACE VIEW ma_tx_first_mint AS
+CREATE MATERIALIZED VIEW  ma_tx_first_mint AS
 WITH ranked_data AS (
   SELECT *,
          ROW_NUMBER() OVER (PARTITION BY ident ORDER BY id) AS rn
@@ -64,14 +63,13 @@ WHERE rn = 1;
 
 -- Combine first mint with the block table to get the final first mint block.id
 
-CREATE OR REPLACE VIEW  assets_with_first_tx AS
+CREATE MATERIALIZED VIEW assets_with_first_tx AS
 SELECT 
-    multi.policy || multi.name AS "assetId",
-    multi.name AS "assetName",
-	multi.fingerprint,
-	block.id as "firstAppearedInSlot",
-    multi.policy as "policyId"
-    
+  multi.policy || multi.name AS "assetId",
+  multi.name AS "assetName",
+  multi.fingerprint,
+  block.slot_no as "firstAppearedInSlot",
+  multi.policy as "policyId"
 FROM 
     multi_asset AS multi
 JOIN 
@@ -92,50 +90,93 @@ order by multi.id;
 -- Join logo data on metadata and select needed rows 
 -- Also add the pg_curl command to get the metadataHash from the get-hash service. 
 
-CREATE OR REPLACE VIEW metadata_with_logo AS
+
+CREATE MATERIALIZED VIEW metadata_with_logo AS
 SELECT 
+  -- assetId is later joined precalculate it bytea version of the subject 
+  -- which is a concaternation of mutli_asset.id and multi_asset.name from db-sync
+	decode(metadata.subject, 'hex') AS "assetId",
 	metadata.subject,
-	metadata.decimals,
-	metadata.description,
-	logo.logo,
-	post('http://get-hash:3050/hash', metadata.properties::JSON) AS "metadataHash",
+	metadata.policy,
 	metadata.name,
 	metadata.ticker,
-	metadata.url
+	metadata.url,
+	metadata.description,
+	metadata.decimals,
+	metadata.updated,
+	metadata.updated_by,
+	metadata.properties,
+	metadata.textsearch,
+	logo.logo,
+  -- metadataGraphql is an artifact introduced here in the hasura api
+  -- packages/api-cardano-db-hasura/src/MetadataClient.ts from git tag 8.3.3 queries the token registry api 
+  -- with the following example query: 
+  -- curl -X POST http://localhost:8080/metadata/query   -H "Content-Type: application/json"   -d '{ "subjects": ["769c4c6e9bc3ba5406b9b89fb7beb6819e638ff2e2de63f008d5bcff744e45574d"], "properties": [ "decimals", "description", "logo", "name", "ticker", "url" ] }'
+  -- we use pg_curl here with a post query to get the same result. 
+  metadataGraphql,
+  -- Following from this a metadataHash is generated to keep track of changes. This is done by:
+  -- https://www.npmjs.com/package/object-hash
+  -- It is hard to replicate the same result in postgres with sha1 (Challange for the reader, I will buy you a beer)
+  -- encode(digest(metadataGraphql::text, 'sha1'), 'hex') AS "metadataGraphqlSha1" does not work
+  -- Therefor a node express service was created to return the result from js. 
+	post('http://get-hash:3050/hash', metadataGraphql::JSON) AS "metadataHash"
+    
 FROM 
-    tokenregistry.metadata as metadata
+    tokenregistry.metadata AS metadata
 JOIN 
-	tokenregistry.logo as logo
-ON 
-	metadata.subject = logo.subject;
-
+    tokenregistry.logo AS logo
+    ON metadata.subject = logo.subject,	
+    LATERAL (
+        SELECT (
+            post(
+                'http://token-metadata-registry:8080/metadata/query',
+                json_build_object(
+                    'subjects', ARRAY[metadata.subject],
+                    'properties', ARRAY[
+                        'decimals',
+                        'description',
+                        'logo',
+                        'name',
+                        'ticker',
+                        'url'
+                    ]
+                )::json
+            )::json -> 'subjects' -> 0
+        ) AS metadataGraphql
+    ) AS result
+WHERE
+    -- There is a subject that is malformed and does not allow to create a bytea assetId. Filter those
+    metadata.subject ~ '^[0-9A-Fa-f]*$'
+    AND length(metadata.subject) % 2 = 0
+ORDER BY 
+	"name" ASC, "assetId" ASC;
+	
 
 -- Create the final "Asset" table 
 
-CREATE OR REPLACE VIEW "Asset" AS
+CREATE MATERIALIZED VIEW "Asset" AS
 SELECT 
-    multi."assetId",
-    multi."assetName",
+  multi."assetId",
+  multi."assetName",
 	metadata.decimals,
-    metadata.description,
-    multi.fingerprint,
+  metadata.description,
+  multi.fingerprint,
 	multi."firstAppearedInSlot",
-    metadata.logo,
-    metadata."metadataHash",
-    metadata.name,
-    multi."policyId",
+  metadata.logo,
+  metadata."metadataHash",
+  metadata.name,
+  multi."policyId",
 	metadata.ticker,
 	metadata.url
 FROM 
-    assets_with_first_tx as multi
+  assets_with_first_tx as multi
 LEFT JOIN 
-    metadata_with_logo as metadata
+  metadata_with_logo as metadata
 ON
-	encode(multi."assetId", 'hex') = metadata.subject;
+	multi."assetId" = metadata."assetId";
 
 
-
-CREATE OR REPLACE VIEW "Block" AS
+CREATE MATERIALIZED VIEW "Block" AS
  SELECT (COALESCE(( SELECT sum((tx.fee)::bigint) AS sum
            FROM tx
           WHERE (tx.block_id = block.id)), (0)::NUMERIC))::bigint AS fees,
@@ -159,7 +200,7 @@ CREATE OR REPLACE VIEW "Block" AS
      LEFT JOIN block next_block ON ((next_block.previous_id = block.id)))
      LEFT JOIN slot_leader ON ((block.slot_leader_id = slot_leader.id)));
 
-CREATE OR REPLACE VIEW "Cardano" AS
+CREATE MATERIALIZED VIEW "Cardano" AS
  SELECT block.block_no AS "tipBlockNo",
     block.epoch_no AS "currentEpochNo"
    FROM block
@@ -167,7 +208,7 @@ CREATE OR REPLACE VIEW "Cardano" AS
   ORDER BY block.id DESC
  LIMIT 1;
 
-CREATE OR REPLACE VIEW "CollateralInput" AS
+CREATE MATERIALIZED VIEW "CollateralInput" AS
 SELECT
   source_tx_out.address,
   source_tx_out.value,
@@ -185,7 +226,7 @@ JOIN tx_out AS source_tx_out
 JOIN tx AS source_tx
   ON source_tx_out.tx_id = source_tx.id;
 
-CREATE OR REPLACE VIEW "CollateralOutput" AS
+CREATE MATERIALIZED VIEW "CollateralOutput" AS
 SELECT
   address,
   collateral_tx_out.address_has_script AS "addressHasScript",
@@ -200,7 +241,7 @@ FROM tx
 JOIN collateral_tx_out
   ON tx.id = collateral_tx_out.tx_id;
 
-CREATE OR REPLACE VIEW "Delegation" AS
+CREATE MATERIALIZED VIEW "Delegation" AS
 SELECT
   delegation.id AS "id",
   stake_address.view AS "address",
@@ -210,7 +251,7 @@ SELECT
 FROM delegation
 JOIN stake_address on delegation.addr_id = stake_address.id;
 
-CREATE OR REPLACE VIEW "DelegationVote" AS
+CREATE MATERIALIZED VIEW "DelegationVote" AS
 SELECT
     delegation_vote.id AS "id",
     stake_address.view AS "address",
@@ -220,7 +261,7 @@ SELECT
 FROM delegation_vote
          JOIN stake_address on delegation_vote.addr_id = stake_address.id;
 
-CREATE OR REPLACE VIEW "Epoch" AS
+CREATE MATERIALIZED VIEW "Epoch" AS
 SELECT
   epoch.fees AS "fees",
   epoch.out_sum AS "output",
@@ -233,7 +274,7 @@ SELECT
 FROM epoch
   LEFT JOIN epoch_param on epoch.no = epoch_param.epoch_no;
 
-CREATE OR REPLACE VIEW "Datum" AS
+CREATE MATERIALIZED VIEW "Datum" AS
 SELECT
   bytes,
   hash,
@@ -242,7 +283,7 @@ SELECT
   value
 FROM datum;
 
-CREATE OR REPLACE VIEW "RedeemerDatum" AS
+CREATE MATERIALIZED VIEW "RedeemerDatum" AS
 SELECT
   bytes,
   hash,
@@ -251,7 +292,7 @@ SELECT
   value
 FROM redeemer_data;
 
-CREATE OR REPLACE VIEW "ProtocolParams" AS
+CREATE MATERIALIZED VIEW "ProtocolParams" AS
 SELECT
   epoch_param.influence AS "a0",
   epoch_param.coins_per_utxo_size AS "coinsPerUtxoByte",
@@ -286,7 +327,7 @@ FROM epoch_param
 JOIN cost_model
   ON epoch_param.cost_model_id = cost_model.id;
 
-CREATE OR REPLACE VIEW "Redeemer" AS
+CREATE MATERIALIZED VIEW "Redeemer" AS
 SELECT
   redeemer.fee AS "fee",
   redeemer.id AS "id",
@@ -299,7 +340,7 @@ SELECT
   redeemer.redeemer_data_id AS "redeemer_datum_id"
 FROM redeemer;
 
-CREATE OR REPLACE VIEW "ReferenceInput" AS
+CREATE MATERIALIZED VIEW "ReferenceInput" AS
 SELECT
   source_tx_out.address,
   source_tx_out.value,
@@ -317,7 +358,7 @@ JOIN tx_out AS source_tx_out
 JOIN tx AS source_tx
   ON source_tx_out.tx_id = source_tx.id;
 
-CREATE OR REPLACE VIEW "Reward" AS
+CREATE MATERIALIZED VIEW "Reward" AS
 SELECT
   reward.amount,
   stake_address.view AS "address",
@@ -328,7 +369,7 @@ SELECT
 FROM reward
 JOIN stake_address on reward.addr_id = stake_address.id;
 
-CREATE OR REPLACE VIEW "Script" AS
+CREATE MATERIALIZED VIEW "Script" AS
 SELECT
   script.hash AS "hash",
   script.id AS "id",
@@ -337,7 +378,7 @@ SELECT
   script.tx_id AS "txId"
 FROM script;
 
-CREATE OR REPLACE VIEW "SlotLeader" AS
+CREATE MATERIALIZED VIEW "SlotLeader" AS
 SELECT
   slot_leader.hash AS "hash",
   slot_leader.id AS "id",
@@ -345,7 +386,7 @@ SELECT
   slot_leader.pool_hash_id AS "pool_hash_id"
 FROM slot_leader;
 
-CREATE OR REPLACE VIEW "StakeDeregistration" AS
+CREATE MATERIALIZED VIEW "StakeDeregistration" AS
 SELECT
   stake_deregistration.id AS "id",
   stake_address.view AS "address",
@@ -354,7 +395,7 @@ SELECT
 FROM stake_deregistration
 JOIN stake_address on stake_deregistration.addr_id = stake_address.id;
 
-CREATE OR REPLACE VIEW "StakePool" AS
+CREATE MATERIALIZED VIEW "StakePool" AS
 WITH
   latest_block_times AS (
     SELECT pool.hash_id, max(block.time) AS blockTime
@@ -385,7 +426,7 @@ FROM pool_update AS pool
   JOIN stake_address on pool.reward_addr_id = stake_address.id
   JOIN pool_hash on pool_hash.id = pool.hash_id;
 
-CREATE OR REPLACE VIEW "StakePoolOwner" AS
+CREATE MATERIALIZED VIEW "StakePoolOwner" AS
 SELECT
   stake_address.hash_raw as "hash",
   pool_update.hash_id as "pool_hash_id"
@@ -393,14 +434,14 @@ FROM pool_owner
 JOIN stake_address ON stake_address.id = pool_owner.addr_id
 JOIN pool_update ON pool_owner.pool_update_id = pool_update.id;
 
-CREATE OR REPLACE VIEW "StakePoolRetirement" AS
+CREATE MATERIALIZED VIEW "StakePoolRetirement" AS
 SELECT
   retiring_epoch as "inEffectFrom",
   announced_tx_id as "tx_id",
   hash_id AS "pool_hash_id"
 FROM pool_retire;
 
-CREATE OR REPLACE VIEW "StakeRegistration" AS
+CREATE MATERIALIZED VIEW "StakeRegistration" AS
 SELECT
   stake_registration.id AS "id",
   stake_address.view AS "address",
@@ -409,7 +450,7 @@ SELECT
 FROM stake_registration
 JOIN stake_address on stake_registration.addr_id = stake_address.id;
 
-CREATE OR REPLACE VIEW "DrepRegistration" AS
+CREATE MATERIALIZED VIEW "DrepRegistration" AS
 SELECT
     drep_registration.id AS "id",
     drep_hash.view AS "DRepId",
@@ -419,7 +460,7 @@ SELECT
 FROM drep_registration
 JOIN drep_hash on drep_registration.drep_hash_id = drep_hash.id;
 
-CREATE OR REPLACE VIEW "ActiveStake" AS
+CREATE MATERIALIZED VIEW "ActiveStake" AS
 SELECT
   stake_address.view AS "address",
   amount AS "amount",
@@ -432,7 +473,7 @@ JOIN pool_hash
   ON pool_hash.id = epoch_stake.pool_id
 JOIN stake_address on epoch_stake.addr_id = stake_address.id;
 
-CREATE OR REPLACE VIEW "TokenMint" AS
+CREATE MATERIALIZED VIEW "TokenMint" AS
 SELECT
   CAST(CONCAT(multi_asset.policy, RIGHT(CONCAT(E'\\', multi_asset.name), -3)) as BYTEA) as "assetId",
   multi_asset.name AS "assetName",
@@ -443,7 +484,7 @@ FROM ma_tx_mint
 JOIN multi_asset
   ON ma_tx_mint.ident = multi_asset.id;
 
-CREATE OR REPLACE VIEW "TokenInOutput" AS
+CREATE MATERIALIZED VIEW "TokenInOutput" AS
 SELECT
   CAST(CONCAT(policy, RIGHT(CONCAT(E'\\', name), -3)) as BYTEA) as "assetId",
   name as "assetName",
@@ -454,7 +495,7 @@ FROM ma_tx_out
 JOIN multi_asset
   ON ma_tx_out.ident = multi_asset.id;
 
-CREATE OR REPLACE VIEW "Transaction" AS
+CREATE MATERIALIZED VIEW "Transaction" AS
 SELECT
   block.hash AS "blockHash",
   tx.block_index AS "blockIndex",
@@ -475,7 +516,7 @@ FROM
 INNER JOIN block
   ON block.id = tx.block_id;
 
-CREATE OR REPLACE VIEW "TransactionInput" AS
+CREATE MATERIALIZED VIEW "TransactionInput" AS
 SELECT
   source_tx_out.address,
   tx_in.redeemer_id AS "redeemerId",
@@ -494,7 +535,7 @@ JOIN tx_out AS source_tx_out
 JOIN tx AS source_tx
   ON source_tx_out.tx_id = source_tx.id;
 
-CREATE OR REPLACE VIEW "TransactionOutput" AS
+CREATE MATERIALIZED VIEW "TransactionOutput" AS
 SELECT
   address,
   tx_out.address_has_script AS "addressHasScript",
@@ -509,7 +550,7 @@ FROM tx
 JOIN tx_out
   ON tx.id = tx_out.tx_id;
 
-CREATE OR REPLACE VIEW "Utxo" AS SELECT
+CREATE MATERIALIZED VIEW "Utxo" AS SELECT
   address,
   tx_out.address_has_script AS "addressHasScript",
   value,
@@ -526,7 +567,7 @@ LEFT OUTER JOIN tx_in
   AND tx_out.index = tx_in.tx_out_index
 WHERE tx_in.tx_in_id IS NULL;
 
-CREATE OR REPLACE VIEW "Withdrawal" AS
+CREATE MATERIALIZED VIEW "Withdrawal" AS
 SELECT
   withdrawal.amount AS "amount",
   withdrawal.id AS "id",

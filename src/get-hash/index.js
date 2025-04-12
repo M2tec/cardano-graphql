@@ -47,19 +47,19 @@ app.post('/hash', (req, res) => {
     return obj;
   }
 
-  const keysToKeep = ['subject', 'decimals', 'policy', 'description', 'logo', 'name', 'ticker', 'url'];
+  // const keysToKeep = ['subject', 'decimals', 'policy', 'description', 'logo', 'name', 'ticker', 'url'];
 
-  const filtered = Object.fromEntries(
-    Object.entries(data).filter(([key]) => keysToKeep.includes(key))
-  );
+  // const filtered = Object.fromEntries(
+  //   Object.entries(data).filter(([key]) => keysToKeep.includes(key))
+  // );
 
-  cleaned = cleanObject(filtered)  
+  // cleaned = cleanObject(filtered)  
 
-  cleaned["additionalProperties"] = {};
+  // cleaned["additionalProperties"] = {};
 
   // console.log(data)
   // console.log(data["name"])
-  const metadataHash = hash(cleaned);
+  const metadataHash = hash(data);
   // if (data["name"]["value"] == 'aAADA') {
     // console.log(data.subject)
     // // Write data to a file named after the hash

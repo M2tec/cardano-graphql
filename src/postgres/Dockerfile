@@ -6,6 +6,10 @@ RUN apt-get update && apt-get -y install git make postgresql-server-dev-16 libcu
 RUN git clone https://github.com/RekGRpth/pg_curl.git
 COPY Makefile pg_curl/Makefile
 RUN cd pg_curl && make && make install
+
+RUN git clone https://github.com/sraoss/pg_ivm.git
+RUN cd pg_ivm && make && make install
+
 RUN cd / && \
         rm -rf /pg_cron && \
         apt-get remove -y git make postgresql-server-dev-16 clang && \

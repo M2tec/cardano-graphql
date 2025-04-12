@@ -1,8 +1,11 @@
-DROP VIEW IF EXISTS
+DROP MATERIALIZED VIEW IF EXISTS 
 "Asset",
+"ma_tx_first_mint",
+"assets_with_first_tx",
+"metadata_with_logo",
+"Block",
 "AdaPots",
 "ActiveStake",
-"Block",
 "Cardano",
 "CollateralInput",
 "CollateralOutput",
