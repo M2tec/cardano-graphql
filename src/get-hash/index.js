@@ -1,30 +1,90 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const hash = require('object-hash');
 
 const app = express();
 const port = process.env.PORT || 3050;
 
-app.use(express.json()); // 🔥 Middleware to parse JSON body
+app.use(express.json());
+
+// const dataDir = path.join(__dirname, 'data');
+
+// Ensure /data directory exists
+// if (!fs.existsSync(dataDir)) {
+//   fs.mkdirSync(dataDir);
+// }
 
 app.post('/hash', (req, res) => {
-  const data = req.body || '{}';
+  // console.log("=")
+  const data = req.body || {};
+ 
+  if (data.decimals?.value !== undefined) {
+    data.decimals.value = parseInt(data.decimals.value, 10);
+  }
 
-  data["additionalProperties"] = {}
+  function cleanObject(obj) {
+    if (Array.isArray(obj)) {
+      return obj.map(cleanObject).filter(item => item !== null);
+    } else if (obj && typeof obj === 'object') {
+      const cleaned = {};
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === null) continue;
+  
+        const cleanedValue = cleanObject(value);
+  
+        const isEmptyObject =
+          typeof cleanedValue === 'object' &&
+          !Array.isArray(cleanedValue) &&
+          Object.keys(cleanedValue).length === 0;
+  
+        if (!isEmptyObject) {
+          cleaned[key] = cleanedValue;
+        }
+      }
+      return cleaned;
+    }
+    return obj;
+  }
 
-  const metadataHash = hash(data)
+  const keysToKeep = ['subject', 'decimals', 'policy', 'description', 'logo', 'name', 'ticker', 'url'];
 
-  console.log("Subject: ", data.subject.padEnd(110, "."), "\tHash: ", metadataHash)
+  const filtered = Object.fromEntries(
+    Object.entries(data).filter(([key]) => keysToKeep.includes(key))
+  );
+
+  cleaned = cleanObject(filtered)  
+
+  cleaned["additionalProperties"] = {};
+
+  // console.log(data)
+  // console.log(data["name"])
+  const metadataHash = hash(cleaned);
+  // if (data["name"]["value"] == 'aAADA') {
+    // console.log(data.subject)
+    // // Write data to a file named after the hash
+    // let subj = data.subject
+    // const filePath = path.join('/data', `${subj}.json`);
+    // console.log(filePath)
+    // fs.writeFile(filePath, JSON.stringify(cleaned, null, 2), err => {
+    //   if (err) {
+    //     console.error('Error writing file:', err);
+    //     return res.status(500).send('Failed to write data to file.');
+    //   }
+    // });
+
+
+    // console.log(data);
+  // }
 
   res.send(metadataHash);
 });
 
-// New GET endpoint
 app.get('/get', (req, res) => {
   res.send({
     message: 'Send a GET request to /get with a JSON body to receive a hash.',
   });
 });
-
 
 app.listen(port, () => {
   console.log(`API running at http://localhost:${port}`);
@@ -32,7 +92,10 @@ app.listen(port, () => {
 
 
 // Example usage
-// curl -X POST http://localhost:3050/hash   -H "Content-Type: application/json"   -d '{"input":"hello"}'
+// curl -X POST http://localhost:3050/hash   -H "Content-Type: application/json"   -d '{"data": {"name": { "value" : "tNEWM"}}}'
+
+
+
 
 
 
