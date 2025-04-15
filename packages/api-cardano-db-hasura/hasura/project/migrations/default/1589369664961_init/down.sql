@@ -1,8 +1,13 @@
+DROP TABLE IF EXISTS
+"Metadata", 
+"MetadataGql" CASCADE;
+
 DROP MATERIALIZED VIEW IF EXISTS 
 "Asset",
 "ma_tx_first_mint",
-"assets_with_first_tx",
-"metadata_with_logo",
+"assets_with_first_tx" CASCADE;
+
+DROP VIEW IF EXISTS 
 "Block",
 "AdaPots",
 "ActiveStake",

@@ -95,7 +95,7 @@ export class HasuraBackgroundClient {
       await this.hasuraCli('migrate --database-name default apply --up all')
     }, {
       factor: 1.75,
-      retries: 9,
+      retries: 1,
       onFailedAttempt: util.onFailedAttemptFor(
         'Applying PostgreSQL schema migrations',
         this.logger
@@ -106,7 +106,7 @@ export class HasuraBackgroundClient {
       await this.hasuraCli('metadata apply')
     }, {
       factor: 1.75,
-      retries: 9,
+      retries: 1,
       onFailedAttempt: util.onFailedAttemptFor('Applying Hasura metadata', this.logger)
     })
     this.applyingSchemaAndMetadata = false

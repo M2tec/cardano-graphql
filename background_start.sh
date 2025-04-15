@@ -1,5 +1,16 @@
 #!/bin/bash
 
+docker compose up -d postgres \
+                     cardano-node \
+                     ogmios \
+                     cardano-db-sync \
+                     hasura \
+                     token-metadata-registry \
+                     pgadmin \
+                     get-hash
+
+npm run build
+
 export HASURA_CLI_PATH=/usr/local/bin/hasura
 export HASURA_CLI_EXT_PATH=/usr/local/bin/hasura-cli_ext
 export HASURA_URI="http://localhost:8090"
