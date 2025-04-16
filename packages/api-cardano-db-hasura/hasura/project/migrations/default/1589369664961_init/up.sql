@@ -73,7 +73,8 @@ RETURNS trigger AS $$
 BEGIN
 	INSERT INTO graphql.trigger_log (message)
 	VALUES ('Metadata updated');
-    REFRESH MATERIALIZED VIEW graphql.metadata_gql;
+  REFRESH MATERIALIZED VIEW graphql.metadata_gql;
+  REFRESH MATERIALIZED VIEW graphql.metadata;
 	RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
@@ -83,7 +84,7 @@ AFTER INSERT OR UPDATE ON tokenregistry.metadata
 FOR EACH ROW
 EXECUTE FUNCTION graphql.metadata_update();
 
-CREATE VIEW graphql.metadata AS
+CREATE MATERIALIZED VIEW graphql.metadata AS
 SELECT 
     gql."assetId",
     metadata.subject,
@@ -128,6 +129,9 @@ CREATE TABLE IF NOT EXISTS "Asset" (
     "ticker" VARCHAR(9),
     "url" VARCHAR
 );
+
+
+
 
 
 CREATE OR REPLACE VIEW "Block" AS
