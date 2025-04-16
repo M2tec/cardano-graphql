@@ -1,11 +1,12 @@
+DROP SCHEMA IF EXISTS graphql CASCADE;
+
 DROP TABLE IF EXISTS
+"Asset",
 "Metadata", 
 "MetadataGql" CASCADE;
 
 DROP MATERIALIZED VIEW IF EXISTS 
-"Asset",
-"ma_tx_first_mint",
-"assets_with_first_tx" CASCADE;
+graphql."metadata_gql" CASCADE;
 
 DROP VIEW IF EXISTS 
 "Block",

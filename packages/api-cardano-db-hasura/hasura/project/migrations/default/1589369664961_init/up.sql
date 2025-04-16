@@ -31,90 +31,103 @@ CREATE OR REPLACE FUNCTION post(url TEXT, request JSON) RETURNS TEXT LANGUAGE SQ
     ) SELECT convert_from(curl_easy_getinfo_data_in, 'utf-8') FROM s;
 $BODY$;
 
-CREATE TABLE "MetadataGql" (
-  subject TEXT,
-  "metadataGraphql" JSON
+CREATE SCHEMA graphql;
+
+CREATE MATERIALIZED VIEW graphql.metadata_gql AS
+SELECT 
+  decode(metadata.subject, 'hex') AS "assetId",
+  metadata.subject,
+  (
+    post(
+      'http://token-metadata-registry:8080/metadata/query',
+      json_build_object(
+        'subjects', ARRAY[metadata.subject],
+        'properties', ARRAY[
+          'decimals',
+          'description',
+          'logo',
+          'name',
+          'ticker',
+          'url'
+        ]
+      )::json
+    )::json -> 'subjects' -> 0
+  ) AS "metadataGraphql"
+FROM 
+  tokenregistry.metadata AS metadata
+WHERE
+  metadata.subject ~ '^[0-9A-Fa-f]*$'
+  AND length(metadata.subject) % 2 = 0;
+
+CREATE UNIQUE INDEX idx_metadata_gql_assetId 
+ON graphql.metadata_gql("assetId");
+
+CREATE TABLE graphql.trigger_log (
+  id SERIAL PRIMARY KEY,
+  event_time TIMESTAMP DEFAULT now(),
+  message TEXT
 );
 
-CREATE TABLE "Metadata" (
-  "assetId" BYTEA,
-  subject TEXT,
-  policy TEXT,
-  name TEXT,
-  ticker TEXT,
-  url TEXT,
-  description TEXT,
-  decimals INTEGER,
-  updated TIMESTAMPTZ,
-  updated_by TEXT,
-  properties JSONB,
-  textsearch TSVECTOR,
-  logo TEXT,
-  "metadataGraphql" JSONB,
-  "metadataHash" TEXT
+CREATE OR REPLACE FUNCTION graphql.metadata_update()
+RETURNS trigger AS $$
+BEGIN
+	INSERT INTO graphql.trigger_log (message)
+	VALUES ('Metadata updated');
+    REFRESH MATERIALIZED VIEW graphql.metadata_gql;
+	RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER metadata_updated
+AFTER INSERT OR UPDATE ON tokenregistry.metadata
+FOR EACH ROW
+EXECUTE FUNCTION graphql.metadata_update();
+
+CREATE VIEW graphql.metadata AS
+SELECT 
+    gql."assetId",
+    metadata.subject,
+    metadata.policy,
+    metadata.name,
+    metadata.ticker,
+    metadata.url,
+    metadata.description,
+    metadata.decimals,
+    metadata.updated,
+    metadata.updated_by,
+    metadata.properties,
+    metadata.textsearch,
+    logo.logo,
+    gql."metadataGraphql",
+    post('http://get-hash:3050/hash', gql."metadataGraphql"::JSON) AS "metadataHash"
+FROM 
+    tokenregistry.metadata AS metadata
+JOIN 
+    tokenregistry.logo AS logo
+ON 
+    metadata.subject = logo.subject
+JOIN 
+    graphql.metadata_gql AS gql
+ON 
+    metadata.subject = gql.subject
+WHERE
+    metadata.subject ~ '^[0-9A-Fa-f]*$'
+    AND length(metadata.subject) % 2 = 0;
+
+CREATE TABLE IF NOT EXISTS "Asset" (
+    "assetId" BYTEA PRIMARY KEY,
+    "assetName" BYTEA,
+    "decimals" INT,
+    "description" VARCHAR,
+    "fingerprint" CHAR(44),
+    "firstAppearedInSlot" INT,
+    "logo" VARCHAR,
+    "metadataHash" CHAR(40),
+    "name" VARCHAR,
+    "policyId" BYTEA,
+    "ticker" VARCHAR(9),
+    "url" VARCHAR
 );
-
--- Modified ma_tx_mint table where only first mint is selected
-
-CREATE MATERIALIZED VIEW  ma_tx_first_mint AS
-WITH ranked_data AS (
-  SELECT *,
-         ROW_NUMBER() OVER (PARTITION BY ident ORDER BY id) AS rn
-  FROM ma_tx_mint
-)
-SELECT *
-FROM ranked_data
-WHERE rn = 1;
-
-
--- Combine first mint with the block table to get the final first mint block.id
-
-CREATE MATERIALIZED VIEW assets_with_first_tx AS
-SELECT 
-  multi.policy || multi.name AS "assetId",
-  multi.name AS "assetName",
-  multi.fingerprint,
-  block.slot_no as "firstAppearedInSlot",
-  multi.policy as "policyId"
-FROM 
-    multi_asset AS multi
-JOIN 
-    ma_tx_first_mint as mint
-ON 
-    multi.id = mint.ident
-JOIN 
-    public.tx 
-ON 
-    mint.tx_id = tx.id
-JOIN 
-    public.block
-ON 
-    tx.block_id = block.id	
-order by multi.id;
-
-
--- Create the final "Asset" table 
-
-CREATE MATERIALIZED VIEW "Asset" AS
-SELECT 
-  multi."assetId",
-  multi."assetName",
-	metadata.decimals,
-  metadata.description,
-  multi.fingerprint,
-	multi."firstAppearedInSlot",
-  metadata.logo,
-  metadata."metadataHash",
-  metadata.name,
-  multi."policyId",
-	metadata.ticker,
-	metadata.url
-FROM 
-  assets_with_first_tx as multi
-LEFT JOIN 
-  "Metadata" as metadata
-ON
-	multi."assetId" = metadata."assetId";
 
 
 CREATE OR REPLACE VIEW "Block" AS
