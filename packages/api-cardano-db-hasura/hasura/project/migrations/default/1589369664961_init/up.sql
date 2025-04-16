@@ -174,6 +174,24 @@ LEFT JOIN
 ON
 	multi."assetId" = metadata."assetId";
 
+
+CREATE OR REPLACE FUNCTION graphql.asset_update()
+RETURNS trigger AS $$
+BEGIN
+	INSERT INTO graphql.trigger_log (message)
+	VALUES ('Assets updated');
+  REFRESH MATERIALIZED VIEW graphql.graphql.ma_tx_first_mint;
+  REFRESH MATERIALIZED VIEW graphql.assets_with_first_tx;
+	RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;  
+
+CREATE TRIGGER metadata_updated
+AFTER INSERT ON block
+FOR EACH ROW
+EXECUTE FUNCTION graphql.metadata_update();
+
+
 CREATE OR REPLACE VIEW "Block" AS
  SELECT (COALESCE(( SELECT sum((tx.fee)::bigint) AS sum
            FROM tx
