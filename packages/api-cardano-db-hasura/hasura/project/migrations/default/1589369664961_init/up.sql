@@ -115,24 +115,64 @@ WHERE
     metadata.subject ~ '^[0-9A-Fa-f]*$'
     AND length(metadata.subject) % 2 = 0;
 
-CREATE TABLE IF NOT EXISTS "Asset" (
-    "assetId" BYTEA PRIMARY KEY,
-    "assetName" BYTEA,
-    "decimals" INT,
-    "description" VARCHAR,
-    "fingerprint" CHAR(44),
-    "firstAppearedInSlot" INT,
-    "logo" VARCHAR,
-    "metadataHash" CHAR(40),
-    "name" VARCHAR,
-    "policyId" BYTEA,
-    "ticker" VARCHAR(9),
-    "url" VARCHAR
-);
+-- Asset preparation
 
+CREATE MATERIALIZED VIEW graphql.ma_tx_first_mint AS
+WITH ranked_data AS (
+  SELECT *,
+         ROW_NUMBER() OVER (PARTITION BY ident ORDER BY id) AS rn
+  FROM ma_tx_mint
+)
+SELECT *
+FROM ranked_data
+WHERE rn = 1;
 
+CREATE MATERIALIZED VIEW graphql.assets_with_first_tx AS
+SELECT 
+  multi.policy || multi.name AS "assetId",
+  multi.name AS "assetName",
+  multi.fingerprint,
+  block.slot_no as "firstAppearedInSlot",
+  multi.policy as "policyId"
+FROM 
+    multi_asset AS multi
+JOIN 
+    graphql.ma_tx_first_mint as mint
+ON 
+    multi.id = mint.ident
+JOIN 
+    public.tx 
+ON 
+    mint.tx_id = tx.id
+JOIN 
+    public.block
+ON 
+    tx.block_id = block.id	
+order by "firstAppearedInSlot";
 
+CREATE UNIQUE INDEX idx_assets_with_first_tx_assetId 
+ON graphql.assets_with_first_tx("assetId");
 
+CREATE VIEW "Asset" AS
+SELECT 
+  multi."assetId",
+  multi."assetName",
+	metadata.decimals,
+  metadata.description,
+  multi.fingerprint,
+	multi."firstAppearedInSlot",
+  metadata.logo,
+  metadata."metadataHash",
+  metadata.name,
+  multi."policyId",
+	metadata.ticker,
+	metadata.url
+FROM 
+  graphql.assets_with_first_tx as multi
+LEFT JOIN 
+  graphql.metadata as metadata
+ON
+	multi."assetId" = metadata."assetId";
 
 CREATE OR REPLACE VIEW "Block" AS
  SELECT (COALESCE(( SELECT sum((tx.fee)::bigint) AS sum
