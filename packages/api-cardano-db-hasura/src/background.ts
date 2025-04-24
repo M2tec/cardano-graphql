@@ -1,5 +1,6 @@
 import { createLogger, LogLevelString } from 'bunyan'
-import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
+// import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
+import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient } from './index
 import onDeath from 'death'
 import { Logger } from 'ts-log'
 import { CustomError } from 'ts-custom-error'
@@ -164,17 +165,17 @@ function filterAndTypecastEnvs (env: any) {
       config.metadataServerUri,
       logger
     )
-    const worker = new Worker(
-      hasuraBackgroundClient,
-      logger,
-      metadataClient,
-      config.db,
-      {
-        metadataUpdateInterval: {
-          assets: config.metadataUpdateInterval?.assets
-        }
-      }
-    )
+    // const worker = new Worker(
+    //   hasuraBackgroundClient,
+    //   logger,
+    //   metadataClient,
+    //   config.db,
+    //   {
+    //     metadataUpdateInterval: {
+    //       assets: config.metadataUpdateInterval?.assets
+    //     }
+    //   }
+    // )
     const db = new Db(config.db, logger)
     const getChainSyncPoints = async (): Promise<PointOrOrigin[]> => {
       const mostRecentPoint = await hasuraBackgroundClient.getMostRecentPointWithNewAsset()
@@ -187,7 +188,7 @@ function filterAndTypecastEnvs (env: any) {
           await hasuraBackgroundClient.initialize()
           await metadataClient.initialize()
           await chainFollower.initialize(config.ogmios, getChainSyncPoints)
-          await worker.start()
+          // await worker.start()
           await chainFollower.start(await getChainSyncPoints())
         } catch (error) {
           logger.error(error.message)
@@ -198,7 +199,7 @@ function filterAndTypecastEnvs (env: any) {
     onDeath(async () => {
       await Promise.all([
         hasuraBackgroundClient.shutdown,
-        worker.shutdown,
+        // worker.shutdown,
         chainFollower.shutdown,
         db.shutdown
       ])

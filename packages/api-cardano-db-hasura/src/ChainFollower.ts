@@ -17,7 +17,7 @@ const MODULE_NAME = 'ChainFollower'
 
 export class ChainFollower {
   private chainSyncClient: ChainSynchronizationClient
-  private queue: PgBoss
+  // private queue: PgBoss
   private state: RunnableModuleState
   private cacheAssets : { assetId: string; assetName: string; firstAppearedInSlot: number; fingerprint: string; policyId: string; }[]
   private cacheTimer : number
@@ -25,7 +25,7 @@ export class ChainFollower {
   constructor (
     readonly hasuraClient: HasuraBackgroundClient,
     private logger: Logger = dummyLogger,
-    private queueConfig: DbConfig
+    // private queueConfig: DbConfig
   ) {
     this.state = null
     this.cacheAssets = []
@@ -36,11 +36,11 @@ export class ChainFollower {
     if (this.state !== null) return
     this.state = 'initializing'
     this.logger.info({ module: MODULE_NAME }, 'Initializing')
-    this.queue = new PgBoss({
-      application_name: 'cardano-graphql',
-      ...this.queueConfig
-    })
-    this.logger.info({ module: MODULE_NAME }, 'Connecting to queue')
+    // this.queue = new PgBoss({
+    //   application_name: 'cardano-graphql',
+    //   ...this.queueConfig
+    // })
+    // this.logger.info({ module: MODULE_NAME }, 'Connecting to queue')
     await pRetry(async () => {
       const context = await createInteractionContextWithLogger(ogmiosConfig, this.logger, MODULE_NAME, async () => {
         await this.shutdown()
@@ -133,12 +133,12 @@ export class ChainFollower {
       const response = await this.hasuraClient.insertAssets(this.cacheAssets)
       this.cacheAssets = []
       response.insert_assets.returning.forEach((asset: { assetId: string }) => {
-        const SIX_HOURS = 21600
-        const THREE_MONTHS = 365
-        this.queue.publish('asset-metadata-fetch-initial', { assetId: asset.assetId.replace('\\x', '') }, {
-          retryDelay: SIX_HOURS,
-          retryLimit: THREE_MONTHS
-        })
+        // const SIX_HOURS = 21600
+        // const THREE_MONTHS = 365
+        // this.queue.publish('asset-metadata-fetch-initial', { assetId: asset.assetId.replace('\\x', '') }, {
+        //   retryDelay: SIX_HOURS,
+        //   retryLimit: THREE_MONTHS
+        // })
       })
     }
   }
@@ -148,7 +148,7 @@ export class ChainFollower {
       throw new errors.ModuleIsNotInitialized(MODULE_NAME, 'start')
     }
     this.logger.info({ module: MODULE_NAME }, 'Starting from ' + JSON.stringify(points))
-    await this.queue.start()
+    // await this.queue.start()
     await this.chainSyncClient.resume(points)
     this.state = 'running'
     this.logger.info({ module: MODULE_NAME }, 'Started')
@@ -159,7 +159,7 @@ export class ChainFollower {
       throw new errors.ModuleIsNotInitialized(MODULE_NAME, 'shutdown')
     }
     this.logger.info({ module: MODULE_NAME }, 'Shutting down')
-    await this.queue.stop()
+    // await this.queue.stop()
     if (this.chainSyncClient.context.socket.readyState === this.chainSyncClient.context.socket.OPEN) {
       await this.chainSyncClient.shutdown()
     }
