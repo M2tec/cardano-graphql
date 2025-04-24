@@ -1,6 +1,6 @@
 import { createLogger, LogLevelString } from 'bunyan'
 // import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient, Worker } from './index'
-import { ChainFollower, Db, HasuraBackgroundClient, MetadataClient } from './index
+import { ChainFollower, Db, HasuraBackgroundClient } from './index'
 import onDeath from 'death'
 import { Logger } from 'ts-log'
 import { CustomError } from 'ts-custom-error'
@@ -159,12 +159,12 @@ function filterAndTypecastEnvs (env: any) {
     const chainFollower = new ChainFollower(
       hasuraBackgroundClient,
       logger,
-      config.db
+      // config.db
     )
-    const metadataClient = new MetadataClient(
-      config.metadataServerUri,
-      logger
-    )
+    // const metadataClient = new MetadataClient(
+    //   config.metadataServerUri,
+    //   logger
+    // )
     // const worker = new Worker(
     //   hasuraBackgroundClient,
     //   logger,
@@ -186,7 +186,7 @@ function filterAndTypecastEnvs (env: any) {
       onDbSetup: async () => {
         try {
           await hasuraBackgroundClient.initialize()
-          await metadataClient.initialize()
+          // await metadataClient.initialize()
           await chainFollower.initialize(config.ogmios, getChainSyncPoints)
           // await worker.start()
           await chainFollower.start(await getChainSyncPoints())

@@ -5,12 +5,12 @@ import {
 import pRetry from 'p-retry'
 import { Config } from './Config'
 import util, { assetFingerprint, errors, RunnableModuleState } from '@cardano-graphql/util'
-import PgBoss from 'pg-boss'
+// import PgBoss from 'pg-boss'
 import { dummyLogger, Logger } from 'ts-log'
 import { createInteractionContextWithLogger } from './util'
 import { PointOrOrigin, BlockPraos, BlockBFT, Tip, Origin } from '@cardano-ogmios/schema'
 import { HasuraBackgroundClient } from './HasuraBackgroundClient'
-import { DbConfig } from './typeAliases'
+// import { DbConfig } from './typeAliases'
 import { ChainSynchronizationClient } from '@cardano-ogmios/client/dist/ChainSynchronization'
 
 const MODULE_NAME = 'ChainFollower'
@@ -40,7 +40,7 @@ export class ChainFollower {
     //   application_name: 'cardano-graphql',
     //   ...this.queueConfig
     // })
-    // this.logger.info({ module: MODULE_NAME }, 'Connecting to queue')
+    this.logger.info({ module: MODULE_NAME }, 'Connecting to queue')
     await pRetry(async () => {
       const context = await createInteractionContextWithLogger(ogmiosConfig, this.logger, MODULE_NAME, async () => {
         await this.shutdown()
@@ -130,16 +130,18 @@ export class ChainFollower {
     }
     if (isTip || this.cacheAssets.length > 1000 || (Date.now() - this.cacheTimer) / 1000 > 60) {
       this.cacheTimer = Date.now() // resetting the timer
-      const response = await this.hasuraClient.insertAssets(this.cacheAssets)
+      // const response = await this.hasuraClient.insertAssets(this.cacheAssets)
+      await this.hasuraClient.insertAssets(this.cacheAssets)
+      
       this.cacheAssets = []
-      response.insert_assets.returning.forEach((asset: { assetId: string }) => {
-        // const SIX_HOURS = 21600
-        // const THREE_MONTHS = 365
-        // this.queue.publish('asset-metadata-fetch-initial', { assetId: asset.assetId.replace('\\x', '') }, {
-        //   retryDelay: SIX_HOURS,
-        //   retryLimit: THREE_MONTHS
-        // })
-      })
+      // response.insert_assets.returning.forEach((asset: { assetId: string }) => {
+      //   const SIX_HOURS = 21600
+      //   const THREE_MONTHS = 365
+      //   this.queue.publish('asset-metadata-fetch-initial', { assetId: asset.assetId.replace('\\x', '') }, {
+      //     retryDelay: SIX_HOURS,
+      //     retryLimit: THREE_MONTHS
+      //   })
+      // })
     }
   }
 
